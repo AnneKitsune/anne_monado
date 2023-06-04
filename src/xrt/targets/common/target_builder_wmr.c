@@ -23,6 +23,8 @@
 
 #include "wmr/wmr_common.h"
 #include "wmr/wmr_interface.h"
+#include "wmr/wmr_controller_base.h"
+#include "wmr/wmr_hmd.h"
 
 #include <assert.h>
 
@@ -103,7 +105,7 @@ wmr_estimate_system(struct xrt_builder *xb,
                     struct xrt_builder_estimate *out_estimate)
 {
 	enum u_logging_level log_level = debug_get_log_option_wmr_log();
-	struct wmr_bt_controllers_search_results ctrls = {0};
+	struct wmr_bt_controllers_search_results bt_ctrls = {0};
 	struct wmr_headset_search_results whsr = {0};
 	struct xrt_builder_estimate estimate = {0};
 	struct xrt_prober_device **xpdevs = NULL;
@@ -127,15 +129,15 @@ wmr_estimate_system(struct xrt_builder *xb,
 
 	wmr_find_headset(xp, xpdevs, xpdev_count, log_level, &whsr);
 
-	wmr_find_bt_controller_pair(xp, xpdevs, xpdev_count, log_level, &ctrls);
+	wmr_find_bt_controller_pair(xp, xpdevs, xpdev_count, log_level, &bt_ctrls);
 
 	if (log_level >= U_LOGGING_DEBUG) {
 		struct u_pp_sink_stack_only sink;
 		u_pp_delegate_t dg = u_pp_sink_stack_only_init(&sink);
 		u_pp(dg, "Found:");
 		print_hmd(dg, "head", whsr.type, whsr.xpdev_holo, whsr.xpdev_companion);
-		print_ctrl(dg, "left", ctrls.left);
-		print_ctrl(dg, "right", ctrls.right);
+		print_ctrl(dg, "left", bt_ctrls.left);
+		print_ctrl(dg, "right", bt_ctrls.right);
 
 		U_LOG_IFL_D(log_level, "%s", sink.buffer);
 	}
@@ -162,11 +164,11 @@ wmr_estimate_system(struct xrt_builder *xb,
 		}
 	}
 
-	if (ctrls.left != NULL) {
+	if (bt_ctrls.left != NULL) {
 		estimate.certain.left = true;
 	}
 
-	if (ctrls.right != NULL) {
+	if (bt_ctrls.right != NULL) {
 		estimate.certain.right = true;
 	}
 
@@ -185,12 +187,16 @@ wmr_open_system_impl(struct xrt_builder *xb,
                      struct u_builder_roles_helper *ubrh)
 {
 	enum u_logging_level log_level = debug_get_log_option_wmr_log();
-	struct wmr_bt_controllers_search_results ctrls = {0};
+	struct wmr_bt_controllers_search_results bt_ctrls = {0};
 	struct wmr_headset_search_results whsr = {0};
 	struct xrt_prober_device **xpdevs = NULL;
 	size_t xpdev_count = 0;
 	xrt_result_t xret_unlock = XRT_SUCCESS;
 	xrt_result_t xret = XRT_SUCCESS;
+
+	struct wmr_hmd *head = NULL;
+	struct wmr_controller_base *ctrl_left = NULL;
+	struct wmr_controller_base *ctrl_right = NULL;
 
 	/*
 	 * Pre device looking stuff.
@@ -209,7 +215,7 @@ wmr_open_system_impl(struct xrt_builder *xb,
 
 	wmr_find_headset(xp, xpdevs, xpdev_count, log_level, &whsr);
 
-	wmr_find_bt_controller_pair(xp, xpdevs, xpdev_count, log_level, &ctrls);
+	wmr_find_bt_controller_pair(xp, xpdevs, xpdev_count, log_level, &bt_ctrls);
 
 
 	/*
@@ -229,9 +235,6 @@ wmr_open_system_impl(struct xrt_builder *xb,
 	 * Creation.
 	 */
 
-	struct xrt_device *head = NULL;
-	struct xrt_device *left = NULL;
-	struct xrt_device *right = NULL;
 	struct xrt_device *ht_left = NULL;
 	struct xrt_device *ht_right = NULL;
 
@@ -242,23 +245,23 @@ wmr_open_system_impl(struct xrt_builder *xb,
 	    whsr.type,             //
 	    log_level,             //
 	    &head,                 //
-	    &left,                 //
-	    &right,                //
+	    &ctrl_left,            //
+	    &ctrl_right,           //
 	    &ht_left,              //
 	    &ht_right);            //
 	if (xret != XRT_SUCCESS) {
 		goto error;
 	}
 
-	if (left == NULL && ctrls.left != NULL) {
-		xret = wmr_create_bt_controller(xp, ctrls.left, log_level, &left);
+	if (ctrl_left == NULL && bt_ctrls.left != NULL) {
+		xret = wmr_create_bt_controller(xp, bt_ctrls.left, log_level, &ctrl_left);
 		if (xret != XRT_SUCCESS) {
 			goto error;
 		}
 	}
 
-	if (right == NULL && ctrls.right != NULL) {
-		xret = wmr_create_bt_controller(xp, ctrls.right, log_level, &right);
+	if (ctrl_right == NULL && bt_ctrls.right != NULL) {
+		xret = wmr_create_bt_controller(xp, bt_ctrls.right, log_level, &ctrl_right);
 		if (xret != XRT_SUCCESS) {
 			goto error;
 		}
@@ -273,12 +276,16 @@ wmr_open_system_impl(struct xrt_builder *xb,
 	assert(xret_unlock == XRT_SUCCESS);
 	(void)xret_unlock;
 
-	xsysd->xdevs[xsysd->xdev_count++] = head;
-	if (left != NULL) {
-		xsysd->xdevs[xsysd->xdev_count++] = left;
+	struct xrt_device *head_xdev = wmr_hmd_to_xrt_device(head);
+	struct xrt_device *left_xdev = wmr_controller_base_to_xrt_device(ctrl_left);
+	struct xrt_device *right_xdev = wmr_controller_base_to_xrt_device(ctrl_right);
+
+	xsysd->xdevs[xsysd->xdev_count++] = head_xdev;
+	if (left_xdev != NULL) {
+		xsysd->xdevs[xsysd->xdev_count++] = left_xdev;
 	}
-	if (right != NULL) {
-		xsysd->xdevs[xsysd->xdev_count++] = right;
+	if (right_xdev != NULL) {
+		xsysd->xdevs[xsysd->xdev_count++] = right_xdev;
 	}
 	if (ht_left != NULL) {
 		xsysd->xdevs[xsysd->xdev_count++] = ht_left;
@@ -288,27 +295,32 @@ wmr_open_system_impl(struct xrt_builder *xb,
 	}
 
 	// Use hand tracking if no controllers.
-	if (left == NULL) {
-		left = ht_left;
+	if (left_xdev == NULL) {
+		left_xdev = ht_left;
 	}
-	if (right == NULL) {
-		right = ht_right;
+	if (right_xdev == NULL) {
+		right_xdev = ht_right;
 	}
 
 
 	// Assign to role(s).
-	ubrh->head = head;
-	ubrh->left = left;
-	ubrh->right = right;
+	ubrh->head = head_xdev;
+	ubrh->left = left_xdev;
+	ubrh->right = right_xdev;
 	ubrh->hand_tracking.left = ht_left;
 	ubrh->hand_tracking.right = ht_right;
 
 	return XRT_SUCCESS;
 
-error:
-	xrt_device_destroy(&head);
-	xrt_device_destroy(&left);
-	xrt_device_destroy(&right);
+error : {
+	struct xrt_device *head_xdev = wmr_hmd_to_xrt_device(head);
+	struct xrt_device *left_xdev = wmr_controller_base_to_xrt_device(ctrl_left);
+	struct xrt_device *right_xdev = wmr_controller_base_to_xrt_device(ctrl_right);
+
+	xrt_device_destroy(&head_xdev);
+	xrt_device_destroy(&left_xdev);
+	xrt_device_destroy(&right_xdev);
+}
 
 	xret_unlock = xrt_prober_unlock_list(xp, &xpdevs);
 	assert(xret_unlock == XRT_SUCCESS);
