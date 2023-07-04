@@ -82,6 +82,14 @@ wmr_controller_connection_disconnect(struct wmr_controller_connection *wcc)
 	wcc->disconnect(wcc);
 }
 
+struct wmr_controller_base_imu_sample
+{
+	uint32_t timestamp_ticks;
+	struct xrt_vec3 acc;
+	struct xrt_vec3 gyro;
+	int32_t temperature;
+};
+
 /*!
  * Common base for all WMR controllers.
  *
@@ -117,8 +125,16 @@ struct wmr_controller_base
 	/* firmware configuration block */
 	struct wmr_controller_config config;
 
+	//! Last ticks counter from input, extended to 64-bits
+	uint64_t last_timestamp_ticks;
+
 	//! Time of last IMU sample, in CPU time.
-	uint64_t last_imu_timestamp_ns;
+	timepoint_ns last_imu_timestamp_ns;
+	//!< Estimated offset from IMU to monotonic clock
+	time_duration_ns hw2mono;
+	//!< Last IMU sample received
+	struct wmr_controller_base_imu_sample last_imu;
+
 	//! Main fusion calculator.
 	struct m_imu_3dof fusion;
 	//! The last angular velocity from the IMU, for prediction.
@@ -133,6 +149,11 @@ wmr_controller_base_init(struct wmr_controller_base *wcb,
 
 void
 wmr_controller_base_deinit(struct wmr_controller_base *wcb);
+
+void
+wmr_controller_base_imu_sample(struct wmr_controller_base *wcb,
+                               struct wmr_controller_base_imu_sample *imu,
+                               timepoint_ns rx_mono_ns);
 
 static inline void
 wmr_controller_connection_receive_bytes(struct wmr_controller_connection *wcc,
