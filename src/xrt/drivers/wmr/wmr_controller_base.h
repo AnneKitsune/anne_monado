@@ -25,6 +25,8 @@
 #include "wmr_controller_tracking.h"
 #include "wmr_config.h"
 
+#include "constellation/led_models.h"
+
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -129,6 +131,7 @@ struct wmr_controller_base
 	                            uint32_t buf_size);
 
 	/* firmware configuration block */
+	bool have_config;
 	struct wmr_controller_config config;
 
 	//! Last ticks counter from input, extended to 64-bits
@@ -218,6 +221,10 @@ wmr_controller_base_to_xrt_device(struct wmr_controller_base *wcb)
 /* Tell the controller which HMD to register with for tracking */
 void
 wmr_controller_attach_to_hmd(struct wmr_controller_base *wcb, struct wmr_hmd *hmd);
+
+/* Called to fill out a constellation_led_model struct. Returns false if config not loaded yet */
+bool
+wmr_controller_base_get_led_model(struct wmr_controller_base *wcb, struct constellation_led_model *led_model);
 
 #ifdef __cplusplus
 }
