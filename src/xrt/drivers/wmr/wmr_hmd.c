@@ -1390,7 +1390,9 @@ compute_distortion_bounds(struct wmr_hmd *wh,
 XRT_MAYBE_UNUSED static struct t_camera_calibration
 wmr_hmd_get_cam_calib(struct wmr_hmd *wh, int cam_index)
 {
-	struct t_camera_calibration res = { 0, };
+	struct t_camera_calibration res = {
+	    0,
+	};
 	struct wmr_camera_config *wcalib = wh->config.tcams[cam_index];
 	struct wmr_distortion_6KT *intr = &wcalib->distortion6KT;
 
