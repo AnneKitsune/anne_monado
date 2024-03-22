@@ -137,7 +137,7 @@ check_pose_prior(struct pose_metrics *score,
 }
 
 static bool
-project_led_points(struct constellation_led_model *led_model,
+project_led_points(struct t_constellation_led_model *led_model,
                    struct camera_model *calib,
                    struct xrt_pose *pose,
                    struct xrt_vec3 *out_positions,
@@ -154,7 +154,7 @@ project_led_points(struct constellation_led_model *led_model,
 
 static void
 get_visible_leds_and_bounds(struct xrt_pose *pose,
-                            struct constellation_led_model *led_model,
+                            struct t_constellation_led_model *led_model,
                             struct camera_model *calib,
                             struct pose_metrics_visible_led_info *visible_led_points,
                             int *num_visible_leds,
@@ -164,7 +164,7 @@ get_visible_leds_and_bounds(struct xrt_pose *pose,
 	struct xrt_vec2 led_out_points[MAX_OBJECT_LEDS];
 	bool first_visible = true;
 	int i;
-	struct constellation_led *leds = led_model->leds;
+	struct t_constellation_led *leds = led_model->leds;
 	const int num_leds = led_model->num_leds;
 
 	/* Project HMD LEDs into the distorted image space */
@@ -254,7 +254,7 @@ void
 pose_metrics_match_pose_to_blobs(struct xrt_pose *pose,
                                  struct blob *blobs,
                                  int num_blobs,
-                                 struct constellation_led_model *led_model,
+                                 struct t_constellation_led_model *led_model,
                                  struct camera_model *calib,
                                  struct pose_metrics_blob_match_info *match_info)
 {
@@ -301,7 +301,7 @@ pose_metrics_match_pose_to_blobs(struct xrt_pose *pose,
 		led_info->matched_blob = b;
 
 		if (b->led_id != LED_INVALID_ID) {
-			struct constellation_led *match_led = led_info->led;
+			struct t_constellation_led *match_led = led_info->led;
 			uint8_t led_id = match_led->id;
 			if (b->led_id != LED_MAKE_ID(led_model->id, led_id)) {
 #if 0
@@ -325,7 +325,7 @@ pose_metrics_evaluate_pose_with_prior(struct pose_metrics *score,
                                       const struct xrt_vec3 *rot_error_thresh,
                                       struct blob *blobs,
                                       int num_blobs,
-                                      struct constellation_led_model *led_model,
+                                      struct t_constellation_led_model *led_model,
                                       struct camera_model *calib,
                                       struct pose_rect *out_bounds)
 {
@@ -415,7 +415,7 @@ pose_metrics_evaluate_pose(struct pose_metrics *score,
                            struct xrt_pose *pose,
                            struct blob *blobs,
                            int num_blobs,
-                           struct constellation_led_model *led_model,
+                           struct t_constellation_led_model *led_model,
                            struct camera_model *calib,
                            struct pose_rect *out_bounds)
 {
