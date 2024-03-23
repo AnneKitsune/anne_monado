@@ -547,21 +547,17 @@ rift_s_controller_get_tracked_pose(struct xrt_device *xdev,
 {
 	struct rift_s_controller *ctrl = (struct rift_s_controller *)(xdev);
 
-	if (name != XRT_INPUT_TOUCH_AIM_POSE && name != XRT_INPUT_TOUCH_GRIP_POSE) {
+	if (name != XRT_INPUT_TOUCH_AIM_POSE && name != XRT_INPUT_TOUCH_GRIP_POSE &&
+	    name != XRT_INPUT_GENERIC_TRACKER_POSE) {
 		RIFT_S_ERROR("unknown pose name requested");
 		return;
 	}
 
 	struct xrt_relation_chain xrc = {0};
 
-	struct xrt_pose pose_correction = {0};
-
-	/* Rotate the grip/aim pose up by 40 degrees around the X axis */
-	struct xrt_vec3 axis = {1.0, 0, 0};
-
-	math_quat_from_angle_vector(DEG_TO_RAD(40), &axis, &pose_correction.orientation);
-
-	m_relation_chain_push_pose(&xrc, &pose_correction);
+	if (name == XRT_INPUT_TOUCH_GRIP_POSE) {
+		m_relation_chain_push_pose(&xrc, &ctrl->P_aim_grip);
+	}
 
 	/* Apply the fusion rotation */
 	struct xrt_space_relation *rel = m_relation_chain_reserve(&xrc);
@@ -570,6 +566,8 @@ rift_s_controller_get_tracked_pose(struct xrt_device *xdev,
 	rift_s_controller_get_fusion_pose(ctrl, name, at_timestamp_ns, rel);
 	if (ctrl->last_tracked_pose_ts != 0) {
 		rel->pose.position = ctrl->last_tracked_pose.position;
+		rel->relation_flags |= (enum xrt_space_relation_flags)(XRT_SPACE_RELATION_POSITION_VALID_BIT |
+		                                                       XRT_SPACE_RELATION_POSITION_TRACKED_BIT);
 	}
 	os_mutex_unlock(&ctrl->mutex);
 
@@ -705,6 +703,12 @@ rift_s_controller_create(struct rift_s_system *sys, enum xrt_device_type device_
 	rift_s_system_reference(&ctrl->sys, sys);
 
 	os_mutex_init(&ctrl->mutex);
+
+	/* Default grip pose up by 40° degrees around the X axis */
+	struct xrt_vec3 translation = {0.0, 0, 0.0};
+	struct xrt_vec3 axis = {1.0, 0, 0};
+	math_quat_from_angle_vector(DEG_TO_RAD(40), &axis, &ctrl->P_aim_grip.orientation);
+	ctrl->P_aim_grip.position = translation;
 
 	ctrl->base.update_inputs = rift_s_controller_update_inputs;
 	ctrl->base.set_output = rift_s_controller_set_output;
