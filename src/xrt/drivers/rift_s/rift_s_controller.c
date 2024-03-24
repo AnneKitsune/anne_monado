@@ -718,6 +718,10 @@ rift_s_controller_create(struct rift_s_system *sys, enum xrt_device_type device_
 	ctrl->base.name = XRT_DEVICE_TOUCH_CONTROLLER;
 	ctrl->base.device_type = device_type;
 
+	ctrl->base.orientation_tracking_supported = true;
+	ctrl->base.position_tracking_supported = true;
+
+
 	if (device_type == XRT_DEVICE_TYPE_LEFT_HAND_CONTROLLER) {
 		ctrl->device_type = RIFT_S_DEVICE_LEFT_CONTROLLER;
 	} else {
