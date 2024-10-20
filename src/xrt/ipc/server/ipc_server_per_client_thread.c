@@ -203,8 +203,8 @@ client_loop(volatile struct ipc_client_state *ics)
 
 		len = recv(ics->imc.ipc_handle, &buf, cmd_size, 0);
 		if (len != (ssize_t)cmd_size) {
-			IPC_ERROR(ics->server, "Invalid packet received, disconnecting client.");
-			break;
+			IPC_ERROR(ics->server, "Invalid packet received, ignoring packet.");
+			continue;
 		}
 
 		// Check the first 4 bytes of the message and dispatch.
@@ -215,8 +215,8 @@ client_loop(volatile struct ipc_client_state *ics)
 		IPC_TRACE_END(ipc_dispatch);
 
 		if (result != XRT_SUCCESS) {
-			IPC_ERROR(ics->server, "During packet handling, disconnecting client.");
-			break;
+			IPC_ERROR(ics->server, "During packet handling, ignoring packet.");
+			continue;
 		}
 	}
 
@@ -289,8 +289,8 @@ client_loop(volatile struct ipc_client_state *ics)
 
 		// Check if the read message has the expected length.
 		if (len != cmd_size) {
-			IPC_ERROR(ics->server, "Invalid packet received, disconnecting client.");
-			break;
+			IPC_ERROR(ics->server, "Invalid packet received, ignoring packet.");
+			continue;
 		}
 
 		IPC_TRACE_BEGIN(ipc_dispatch);
@@ -298,8 +298,8 @@ client_loop(volatile struct ipc_client_state *ics)
 		IPC_TRACE_END(ipc_dispatch);
 
 		if (result != XRT_SUCCESS) {
-			IPC_ERROR(ics->server, "During packet handling, disconnecting client.");
-			break;
+			IPC_ERROR(ics->server, "During packet handling, ignoring packet..");
+			continue;
 		}
 	}
 
