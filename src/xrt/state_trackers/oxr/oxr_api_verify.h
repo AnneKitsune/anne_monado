@@ -10,10 +10,20 @@
 
 #pragma once
 
+#include "oxr_frame_sync.h" // iwyu pragma: keep
+
+#include <stddef.h>
+
+
 #ifdef __cplusplus
 extern "C" {
 #endif
 
+struct oxr_action_set;
+struct oxr_extension_status;
+struct oxr_instance;
+struct oxr_logger;
+struct oxr_subaction_paths;
 
 #define OXR_VERIFY_AND_SET_AND_INIT(log, thing, new_thing, oxr_thing, THING, name, lookup)                             \
 	do {                                                                                                           \
@@ -255,7 +265,7 @@ extern "C" {
 
 #define OXR_VERIFY_SESSION_RUNNING(log, sess)                                                                          \
 	do {                                                                                                           \
-		if (!sess->has_begun) {                                                                                \
+		if (!oxr_frame_sync_is_session_running(&sess->frame_sync)) {                                           \
 			return oxr_error(log, XR_ERROR_SESSION_NOT_RUNNING, "Session is not running");                 \
 		}                                                                                                      \
 	} while (false)

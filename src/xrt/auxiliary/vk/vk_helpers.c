@@ -1063,6 +1063,13 @@ err_image:
 	return ret;
 }
 
+// - vk_csci_get_image_external_handle_type (usually but not always a constant)
+// - vk_csci_get_image_external_support
+//   - vkGetPhysicalDeviceImageFormatProperties2
+// - vkCreateImage
+// - vkGetImageMemoryRequirements
+// - maybe vkGetAndroidHardwareBufferPropertiesANDROID
+// - vk_alloc_and_bind_image_memory
 XRT_CHECK_RESULT VkResult
 vk_create_image_from_native(struct vk_bundle *vk,
                             const struct xrt_swapchain_create_info *info,
@@ -1078,13 +1085,13 @@ vk_create_image_from_native(struct vk_bundle *vk,
 #ifdef XRT_GRAPHICS_BUFFER_HANDLE_IS_AHARDWAREBUFFER
 	/*
 	 * Some Vulkan drivers will natively support importing and exporting
-	 * SRGB formats (Qualcomm Adreno) even tho technically that's not intended
-	 * by the AHardwareBuffer since they don't support sRGB formats.
-	 * While others (arm Mali) does not support importing and exporting sRGB
-	 * formats. So we need to create the image without sRGB and then create
-	 * the image views with sRGB which is allowed by the Vulkan spec. It
-	 * seems to be safe to do with on all drivers, so to reduce the logic
-	 * do that instead.
+	 * SRGB formats (Qualcomm Adreno) even though technically the
+	 * AHardwareBuffer support for sRGB is... awkward (not inherent).
+	 * While others (arm Mali) does not support importing and exporting
+	 * sRGB formats. So we need to create the image without sRGB and
+	 * then create the image views with sRGB which is allowed by the
+	 * Vulkan spec. It seems to be safe to do with on all drivers,
+	 * so to reduce the logic do that instead.
 	 */
 	if (image_format == VK_FORMAT_R8G8B8A8_SRGB) {
 		image_format = VK_FORMAT_R8G8B8A8_UNORM;
@@ -1186,7 +1193,31 @@ vk_create_image_from_native(struct vk_bundle *vk,
 #else
 #error "need port"
 #endif
-	if (requirements.size > image_native->size) {
+
+	if (handle_type == VK_EXTERNAL_MEMORY_HANDLE_TYPE_ANDROID_HARDWARE_BUFFER_BIT_ANDROID) {
+		/*
+		 * Skip check in this case
+		 * VUID-VkMemoryAllocateInfo-allocationSize-02383
+		 * For AHardwareBuffer handles, the alloc size must be the size returned by
+		 * vkGetAndroidHardwareBufferPropertiesANDROID for the Android hardware buffer
+		 */
+	} else if ((handle_type & (VK_EXTERNAL_MEMORY_HANDLE_TYPE_D3D11_TEXTURE_BIT |
+	                           VK_EXTERNAL_MEMORY_HANDLE_TYPE_D3D11_TEXTURE_KMT_BIT |
+	                           VK_EXTERNAL_MEMORY_HANDLE_TYPE_D3D12_RESOURCE_BIT)) != 0) {
+
+		/*
+		 * For VK_EXTERNAL_MEMORY_HANDLE_TYPE_D3D11_TEXTURE_KMT_BIT and friends,
+		 * the size must be queried by the implementation (See VkMemoryAllocateInfo manual page)
+		 * so skip size check
+		 */
+	} else if (requirements.size == 0) {
+		/*
+		 * VUID-VkMemoryAllocateInfo-allocationSize-07899
+		 * For any handles other than AHardwareBuffer, size must be greater than 0
+		 */
+		VK_ERROR(vk, "size must be greater than 0");
+
+	} else if (requirements.size > image_native->size) {
 		VK_ERROR(vk, "size mismatch, exported %" PRIu64 " but requires %" PRIu64, image_native->size,
 		         requirements.size);
 		return VK_ERROR_OUT_OF_DEVICE_MEMORY;
