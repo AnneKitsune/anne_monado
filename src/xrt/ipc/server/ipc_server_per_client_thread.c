@@ -184,28 +184,15 @@ client_loop(volatile struct ipc_client_state *ics)
 			break;
 		}
 
-		// Peek the first 4 bytes to get the command type
-		enum ipc_command cmd;
-		ssize_t len = recv(ics->imc.ipc_handle, &cmd, sizeof(cmd), MSG_PEEK);
-		if (len != sizeof(cmd)) {
-			IPC_ERROR(ics->server, "Invalid command received.");
-			break;
-		}
-
-		size_t cmd_size = ipc_command_size(cmd);
-		if (cmd_size == 0) {
-			IPC_ERROR(ics->server, "Invalid command size.");
-			break;
-		}
-
-		// Read the whole command now that we know its size
 		uint8_t buf[IPC_BUF_SIZE] = {0};
 
-		len = recv(ics->imc.ipc_handle, &buf, cmd_size, 0);
-		if (len != (ssize_t)cmd_size) {
-			IPC_ERROR(ics->server, "Invalid packet received, ignoring packet.");
-			continue;
-		}
+		// Finally get the data that is waiting for us.
+        //! @todo replace this call
+        ssize_t len = recv(ics->imc.ipc_handle, &buf, IPC_BUF_SIZE, 0);
+        if (len < 4) {
+            IPC_ERROR(ics->server, "Invalid packet received, disconnecting client.");
+            break;
+        }
 
 		// Check the first 4 bytes of the message and dispatch.
 		ipc_command_t *ipc_command = (ipc_command_t *)buf;
